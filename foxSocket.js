@@ -2,9 +2,7 @@
 	"use strict";
 
 	//foxSocks
-	function fox() {
-		return this;
-		}
+	var	fox=Object.create(null);
 	fox.connections=new Object();
 
 	//Fake socket
@@ -27,7 +25,7 @@
 		}
 	fox.Socket.prototype.on=function(name,callback) {
 		if(name==="open"||name==="close"||name==="error") {
-			this.socket.on(name,function(socket) {
+			this.socket.addEventListener(name,function(socket) {
 				return function() {
 					callback.apply(socket,arguments);
 					}
@@ -42,6 +40,10 @@
 		if(this.socket.readyState===WebSocket.OPEN) {
 			this.socket.send(JSON.stringify(Array.prototype.slice.call(arguments)));
 			}
+		return this;
+		}
+	fox.Socket.prototype.close=function() {
+		this.socket.close();
 		return this;
 		}
 
