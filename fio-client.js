@@ -8,6 +8,7 @@
 		if(!port) port=location.port;
 		this.id=-1;
 		this.events=[nofunc];
+		this._events=Object.create(null);
 		this.eventKeys=Object.create(null);
 		this.socket=new WebSocket("ws://"+host+":"+port);
 		this.socket._fio=this;
@@ -20,7 +21,11 @@
 		this._fio.id=message.pop();
 		for(var i=0; i<message.length; i++) {
 			this._fio.eventKeys[message[i]]=i;
+			if(this._fio._events[message[i]]) {
+				this._fio.events[i]=this._fio._events[message[i]];
+				}
 			}
+		delete this._events;
 		this.removeEventListener("message", fio.Socket.setup);
 		this.addEventListener("message", fio.Socket.message);
 		if(this._fio.onsetup) {
@@ -49,6 +54,9 @@
 			}
 		else if(name==="open") {
 			this.onsetup=callback;
+			}
+		else if(~this.id) {
+			this.events[this.eventKeys[name]]=callback;
 			}
 		else {
 			this.events[this.eventKeys[name]]=callback;
