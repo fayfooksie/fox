@@ -1,0 +1,10 @@
+{
+	"name": "fio",
+	"version": "1.0.0",
+	"author": "fay fooksie",
+	"description": "a simple, optimized websocket wrapper",
+	"repository": {
+		"type": "git",
+		"url": "git://github.com/fooffie/fio.git"
+		}
+	}
