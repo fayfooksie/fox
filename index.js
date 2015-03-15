@@ -11,10 +11,11 @@ var	fio=Object.create(null),
 
 //fio.Server
 fio.Server=function(settings) {
+	this.id=-1;
 	this.events=[null];
 	this.eventKeys=Object.create(null);
 	this.eventKeys.null=0;
-	this.eventKeyArray=["hb"];
+	this.eventSetup="null";
 	this.connect=nofunc;
 	this.disconnect=nofunc;
 	this.server=new WebSocket.Server(settings);
@@ -33,7 +34,7 @@ fio.Server=function(settings) {
 	};
 fio.Server.connect=function(socket) {
 	socket=new fio.Client(socket, this.fio);
-	socket.socket.send(JSON.stringify(this.fio.eventKeyArray.concat(socket.id)));
+	socket.socket.send(this.fio.eventSetup+"\0"+socket.id);
 	this.fio.sockets.push(socket);
 	this.fio.connect.call(socket, socket);
 	};
@@ -46,8 +47,8 @@ fio.Server.prototype.on=function(event, callback) {
 		}
 	else {
 		this.events.push(callback||nofunc);
-		this.eventKeys[event]=this.eventKeyArray.length;
-		this.eventKeyArray.push(event);
+		this.eventKeys[event]=this.events.length-1;
+		this.eventSetup+="\0"+event;
 		}
 	return this;
 	};
@@ -112,15 +113,31 @@ fio.Client.message=function(message) {
 			}
 		}
 	else {
-		var	event=this.fio.events[message.charCodeAt(0)];
-		if(event) {
+		var	type=message.charCodeAt(1),
+			event=this.fio.events[message.charCodeAt(0)];
+		if(type===3) {
 			try {
-				message=JSON.parse(message.substring(1));
+				message=JSON.parse(message.substring(2));
 				}
 			catch(error) {
 				return;
 				}
 			event.apply(this.fio, message);
+			}
+		else if(type===2) {
+			try {
+				message=JSON.parse(message.substring(2));
+				}
+			catch(error) {
+				return;
+				}
+			event.call(this.fio, message);
+			}
+		else if(type===1) {
+			event.call(this.fio, +message.substring(2));
+			}
+		else {
+			event.call(this.fio, message.substring(2));
 			}
 		}
 	};
@@ -156,12 +173,29 @@ fio.Client.prototype.send=function(event, data) {
 			this.socket.send(buffer.buffer);
 			}
 		else {
-			for(var i=0, data=new Array(arguments.length-1); i<data.length;) {
-				data[i]=arguments[++i];
+			var	type;
+			if(arguments.length>2) {
+				type=3;
+				data=new Array(arguments.length-1);
+				for(var i=0; i<data.length;) {
+					data[i]=arguments[++i];
+					}
+				data=JSON.stringify(data);
+				}
+			else if(typeof data==="object") {
+				type=2;
+				data=JSON.stringify(data);
+				}
+			else if(typeof data==="number") {
+				type=1;
+				}
+			else {
+				type=0;
+				data=data||"";
 				}
 			this.socket.send(
 				String.fromCharCode(this.eventKeys[event])+
-				JSON.stringify(data)
+				String.fromCharCode(type)+data
 				);
 			}
 		}
@@ -217,13 +251,20 @@ fio.Socket.message=function(message) {
 			);
 		}
 	else {
-		try {
-			message=JSON.parse(message);
+		var	type=message.charCodeAt(1),
+			event=this.fio.events[message.charCodeAt(0)];
+		if(type===3) {
+			event.apply(this.fio, JSON.parse(message.substring(2)));
 			}
-		catch(error) {
-			return;
+		else if(type===2) {
+			event.call(this.fio, JSON.parse(message.substring(2)));
 			}
-		this.fio.events[message.pop()].apply(this.fio, message);
+		else if(type===1) {
+			event.call(this.fio, +message.substring(2));
+			}
+		else {
+			event.call(this.fio, message.substring(2));
+			}
 		}
 	};
 fio.Socket.prototype=Object.create(fio.Client.prototype);

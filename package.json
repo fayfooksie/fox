@@ -1,6 +1,6 @@
 {
-	"name": "fio",
-	"version": "1.0.0",
+	"name": "fios",
+	"version": "1.0.2",
 	"author": "fay fooksie",
 	"description": "a simple, optimized websocket wrapper",
 	"repository": {

@@ -30,8 +30,8 @@ void function() {
 	fio.Socket.setup=function(message) {
 		var	socket=this.fio;
 		if(!socket.initialized) {
-			message=JSON.parse(message.data);
-			socket.id=message.pop();
+			message=message.data.split(/\0/);
+			socket.id=+message.pop();
 			for(var i=0; i<message.length; i++) {
 				socket.eventKeys[message[i]]=i;
 				socket.events[i]=socket._events[message[i]]||nofunc;
@@ -54,10 +54,20 @@ void function() {
 				);
 			}
 		else {
-			this.fio.events[message.charCodeAt(0)].apply(
-				this.fio,
-				JSON.parse(message.substring(1))
-				);
+			var	type=message.charCodeAt(1),
+				event=this.fio.events[message.charCodeAt(0)];
+			if(type===3) {
+				event.apply(this.fio, JSON.parse(message.substring(2)));
+				}
+			else if(type===2) {
+				event.call(this.fio, JSON.parse(message.substring(2)));
+				}
+			else if(type===1) {
+				event.call(this.fio, +message.substring(2));
+				}
+			else {
+				event.call(this.fio, message.substring(2));
+				}
 			}
 		};
 	fio.Socket.autoconnect=function(event) {
@@ -97,12 +107,29 @@ void function() {
 			this.socket.send(buffer.buffer);
 			}
 		else {
-			for(var i=0, data=new Array(arguments.length-1); i<data.length;) {
-				data[i]=arguments[++i];
+			var	type;
+			if(arguments.length>2) {
+				type=3;
+				data=new Array(arguments.length-1);
+				for(var i=0; i<data.length;) {
+					data[i]=arguments[++i];
+					}
+				data=JSON.stringify(data);
+				}
+			else if(typeof data==="object") {
+				type=2;
+				data=JSON.stringify(data);
+				}
+			else if(typeof data==="number") {
+				type=1;
+				}
+			else {
+				type=0;
+				data=data||"";
 				}
 			this.socket.send(
 				String.fromCharCode(this.eventKeys[event])+
-				JSON.stringify(data)
+				String.fromCharCode(type)+data
 				);
 			}
 		return this;
